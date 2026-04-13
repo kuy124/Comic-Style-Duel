@@ -2458,60 +2458,110 @@
                     this.infernoTick++;
 
                     if (this.infernoState === 'active') {
-                        // Phase 1: Lava rises
-                        if (this.infernoTick < 100) {
-                            this.lavaLevel = (this.infernoTick / 100) * (canvas.height * 0.4);
-                            if (this.infernoTick % 5 === 0) {
-                                particles.push(new Particle(rand(0, canvas.width), canvas.height, '#ff4400', rand(10, 20), 30, rand(5, 15), false, 'circle'));
-                            }
-                        }
-                        if (this.infernoTick === 120) {
-                            this.infernoState = 'erupting';
-                            this.infernoTick = 0;
-                            actionWords.push(new ActionWord(canvas.width / 2, canvas.height / 2, "THE FLOOR IS LAVA!", 2.5));
-                        }
-                    } else if (this.infernoState === 'erupting') {
-                        // Phase 2: Fire Pillars
+                        // Phase 1: Lava rises & Constant Heat (HEAVY NERF)
                         if (this.infernoTick < 120) {
-                            if (this.infernoTick % 10 === 0) {
-                                let px = rand(100, canvas.width - 100);
-                                actionWords.push(new ActionWord(px, canvas.height - 50, "!", 0.8));
-                                setTimeout(() => {
-                                    createExplosion(px, canvas.height - 100, '#ff6600', 100, 3.0);
-                                    triggerShake(10);
-                                    if (enemy && Math.abs(enemy.x - px) < 80) enemy.takeDamage(10, "LAVA PILLAR");
-                                }, 400);
+                            this.lavaLevel = (this.infernoTick / 120) * (canvas.height * 0.5);
+                            if (this.infernoTick % 12 === 0) { // Optimized: spawn less frequently
+                                // Spawning volcanic embers
+                                particles.push(new Particle(rand(0, canvas.width), canvas.height, '#ff4400', rand(10, 25), 40, rand(4, 12), false, 'circle'));
+                            }
+                            // Constant Heat Damage (HEAVY NERF)
+                            if (enemy && this.infernoTick % 80 === 0) {
+                                enemy.takeDamage(1, "INTENSE HEAT");
+                                enemy.applyStatus('burn', 20);
+                                triggerShake(0.5);
                             }
                         }
                         if (this.infernoTick === 140) {
-                            this.infernoState = 'supernova';
+                            this.infernoState = 'erupting';
                             this.infernoTick = 0;
-                            actionWords.push(new ActionWord(this.x, this.y, "SUPERNOVA!", 3.0));
-                            triggerShake(20);
+                            actionWords.push(new ActionWord(canvas.width / 2, canvas.height / 2, "HELLFIRE DESCENDS!", 2.5));
+                            triggerShake(5);
                         }
-                    } else if (this.infernoState === 'supernova') {
-                        // Phase 3: Final Blast
-                        if (this.infernoTick < 60) {
-                            // Charging particles
-                            for (let i = 0; i < 3; i++) {
-                                let ang = rand(0, Math.PI * 2);
-                                let dist = 100 - this.infernoTick * 1.5;
-                                particles.push(new Particle(this.x + Math.cos(ang) * dist, this.y + Math.sin(ang) * dist, '#ffcc00', 10, 20, 5, false, 'circle'));
+                    } else if (this.infernoState === 'erupting') {
+                        // Phase 2: Rapid Fire Pillars (HEAVY NERF)
+                        if (this.infernoTick < 180) {
+                            // Even less frequent pillars for performance and balance
+                            if (this.infernoTick % 20 === 0) {
+                                let px = enemy ? (enemy.x + rand(-80, 80)) : rand(100, canvas.width - 100);
+                                px = Math.max(50, Math.min(canvas.width - 50, px));
+                                
+                                // Warning VFX
+                                let warning = new ActionWord(px, canvas.height - 40, "🔥", 0.9);
+                                warning.color = '#ff3300';
+                                actionWords.push(warning);
+
+                                setTimeout(() => {
+                                    // Pillar of death
+                                    createExplosion(px, canvas.height - 100, '#ff4400', 30, 1.5); 
+                                    triggerShake(4);
+                                    if (enemy && Math.abs(enemy.x - px) < 60) { 
+                                        enemy.takeDamage(5, "HELLFIRE PILLAR");
+                                        enemy.applyStatus('burn', 40);
+                                        enemy.vy -= 4; 
+                                    }
+                                    // Visual pillar (Simplified)
+                                    for(let j=0; j<3; j++) {
+                                        particles.push(new Particle(px + rand(-10, 10), canvas.height - j*80, '#ff6600', rand(2, 3), 20, rand(5, 12), false, 'circle'));
+                                    }
+                                }, 300);
+                            }
+                            
+                            // Rocks falling (Very Rare)
+                            if (this.infernoTick % 60 === 0) {
+                                let rx = rand(0, canvas.width);
+                                particles.push(new Particle(rx, 0, '#442211', rand(3, 6), 60, 12, true, 'square', true));
+                                setTimeout(() => {
+                                    if (enemy && Math.hypot(enemy.x - rx, enemy.y - canvas.height) < 100) {
+                                        enemy.takeDamage(4, "FALLING DEBRIS");
+                                    }
+                                }, 800);
                             }
                         }
-                        if (this.infernoTick === 80) {
-                            hitStopFrames = 40;
-                            triggerShake(100); flashScreen();
+                        
+                        if (this.infernoTick === 200) {
+                            this.infernoState = 'supernova';
+                            this.infernoTick = 0;
+                            actionWords.push(new ActionWord(this.x, this.y, "CRIMSON SUPERNOVA!", 3.5));
+                            triggerShake(30);
+                            flashScreen();
+                        }
+                    } else if (this.infernoState === 'supernova') {
+                        // Phase 3: Total Meltdown Buildup (OPTIMIZED)
+                        if (this.infernoTick < 100) {
+                            // Reduced particle density
+                            for (let i = 0; i < 2; i++) {
+                                let ang = rand(0, Math.PI * 2);
+                                let dist = 250 - (this.infernoTick * 2.5);
+                                particles.push(new Particle(this.x + Math.cos(ang) * dist, this.y + Math.sin(ang) * dist, '#ffcc00', 10, 15, 6, false, 'star'));
+                            }
+                            triggerShake(1 + this.infernoTick / 15);
+                            
+                            if (this.infernoTick === 50) {
+                                actionWords.push(new ActionWord(canvas.width / 2, canvas.height / 2, "EVERYTHING BURNS.", 2.5));
+                            }
+                        }
+                        
+                        if (this.infernoTick === 110) {
+                            hitStopFrames = 20; // Reduced hitstop
+                            triggerShake(60);
+                            flashScreen();
+                            
                             if (enemy) {
-                                enemy.takeDamage(100, "SUPERNOVA");
-                                enemy.applyStatus('bleed', 180);
-                                createExplosion(this.x, this.y, '#ffffff', 400, 10.0);
-                                createExplosion(this.x, this.y, '#ff4400', 300, 8.0);
-                                let sw = new Shockwave(this.x, this.y, '#ff6600', 800, 0, this);
+                                let totalDmg = 80; // Nerfed from 110 (Original was 100)
+                                enemy.takeDamage(totalDmg, "CRIMSON SUPERNOVA");
+                                enemy.applyStatus('burn', 120); 
+                                enemy.applyStatus('bleed', 80); 
+                                
+                                createExplosion(this.x, this.y, '#ffffff', 300, 8.0);
+                                createExplosion(this.x, this.y, '#ff4400', 200, 6.0);
+                                
+                                let sw = new Shockwave(this.x, this.y, '#ff3300', 700, 0, this);
                                 sw.hitFlag = true; shockwaves.push(sw);
                             }
                         }
-                        if (this.infernoTick >= 150) {
+                        
+                        if (this.infernoTick >= 200) {
                             this.infernoState = 'done';
                             this.x = this.infSavedX; this.y = this.infSavedY;
                             this.vx = this.infSavedVx; this.vy = this.infSavedVy;
@@ -4392,46 +4442,91 @@
 
 
             } else if (isInfernoActive) {
-                // === INFERNO REALM RENDERING ===
+                // === INFERNO REALM RENDERING (OPTIMIZED) ===
                 let infFighter = fighters.find(f => f.infernoState && f.infernoState !== 'done');
                 let infTick = infFighter ? infFighter.infernoTick : 0;
                 let infState = infFighter ? infFighter.infernoState : '';
                 let lavaY = canvas.height - (infFighter ? infFighter.lavaLevel : 0);
 
                 // Volcanic sky
-                let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                skyGrad.addColorStop(0, '#220000');
-                skyGrad.addColorStop(1, '#662200');
-                ctx.fillStyle = skyGrad;
+                ctx.fillStyle = '#150000';
                 ctx.fillRect(-canvas.width, -canvas.height, canvas.width * 3, canvas.height * 3);
 
-                // Heat Haze
-                ctx.fillStyle = `rgba(255, 60, 0, ${0.05 + Math.sin(Date.now() * 0.005) * 0.03})`;
+                // Static Heat Overlay (Cheaper than gradient)
+                ctx.fillStyle = 'rgba(255, 30, 0, 0.12)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+                // Embers (Background - Reduced Count)
+                ctx.fillStyle = '#ff6600';
+                for (let i = 0; i < 8; i++) {
+                    let ex = (i * 200 + Date.now() * 0.05) % canvas.width;
+                    let ey = (i * 100 + Math.sin(Date.now() * 0.001 + i) * 50) % canvas.height;
+                    ctx.beginPath(); ctx.arc(ex, ey, 2, 0, Math.PI * 2); ctx.fill();
+                }
 
-                // Lava at bottom
-                ctx.fillStyle = '#ff4400';
+                // Volcanic Mountains (Simplified Silhouettes)
+                ctx.fillStyle = '#0a0300';
+                for (let i = 0; i < 3; i++) {
+                    let mx = i * 400 - 100;
+                    ctx.beginPath();
+                    ctx.moveTo(mx, canvas.height);
+                    ctx.lineTo(mx + 200, canvas.height - 180);
+                    ctx.lineTo(mx + 400, canvas.height);
+                    ctx.fill();
+                }
+
+                // Lava Rendering (Optimized Gradient)
+                let lavaGrad = ctx.createLinearGradient(0, lavaY, 0, canvas.height);
+                lavaGrad.addColorStop(0, '#ff6600');
+                lavaGrad.addColorStop(1, '#661100');
+                ctx.fillStyle = lavaGrad;
                 ctx.fillRect(0, lavaY, canvas.width, canvas.height);
-                // Lava glow/bubbles
-                ctx.fillStyle = '#ffcc00';
-                for (let i = 0; i < 10; i++) {
-                    let bx = (i * 133 + Date.now() * 0.05) % canvas.width;
-                    ctx.beginPath(); ctx.arc(bx, lavaY + 10 + Math.sin(Date.now() * 0.01 + i) * 10, 5, 0, Math.PI * 2); ctx.fill();
-                }
 
-                // Heat haze effect
-                ctx.fillStyle = 'rgba(255, 100, 0, 0.03)';
+                // Lava bubbles (Reduced count, simplified)
+                ctx.fillStyle = 'rgba(255, 200, 0, 0.3)';
                 for (let i = 0; i < 5; i++) {
-                    let hy = (Date.now() * 0.1 + i * 100) % canvas.height;
-                    ctx.fillRect(0, hy, canvas.width, 20);
+                    let bx = (i * 250 + Date.now() * 0.02) % canvas.width;
+                    let bob = Math.sin(Date.now() * 0.003 + i) * 10;
+                    ctx.beginPath(); ctx.arc(bx, lavaY + 20 + bob, 6, 0, Math.PI * 2); ctx.fill();
                 }
 
-                // Title
+                // Supernova Buildup VFX (Optimized)
+                if (infState === 'supernova' && infTick < 110) {
+                    let alpha = infTick / 110;
+                    ctx.globalAlpha = alpha * 0.2;
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    ctx.save();
+                    ctx.translate(infFighter.x, infFighter.y);
+                    ctx.rotate(Date.now() * 0.005);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
+                    for(let i=0; i<4; i++) {
+                        let a = (i/4) * Math.PI * 2;
+                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(1000, 0); ctx.stroke();
+                        ctx.rotate(Math.PI/4);
+                    }
+                    ctx.restore();
+                    ctx.globalAlpha = 1.0;
+                }
+
+                // UI for Domain Title (Simplified Glassmorphism)
+                ctx.save();
+                ctx.translate(canvas.width / 2, canvas.height * 0.15);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.beginPath(); ctx.roundRect(-220, -40, 440, 80, 15); ctx.fill();
+                
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.font = "900 70px 'Montserrat', sans-serif";
-                ctx.fillStyle = `rgba(255, 100, 0, ${0.15 + Math.sin(Date.now() * 0.005) * 0.05})`;
-                ctx.fillText('INFERNO REALM', canvas.width / 2, canvas.height * 0.15);
+                ctx.font = "900 60px 'Montserrat', sans-serif";
+                ctx.fillStyle = '#ffcc00';
+                ctx.fillText('INFERNO REALM', 0, 0);
+                
+                ctx.globalAlpha = 0.4 + Math.sin(Date.now() * 0.005) * 0.3;
+                ctx.fillStyle = '#fff';
+                ctx.fillText('INFERNO REALM', 0, 0);
+                
+                ctx.restore();
+                
 
             } else if (isShriekActive) {
                 // === THE VOID WHISPER RENDERING ===
